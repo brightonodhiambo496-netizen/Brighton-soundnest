@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brighton</title>
+<style>
+:root{--card:#2a1a52;--text:#fff;--muted:#b9a9e6;--pink:#ff3d81;--amber:#ffb62e;--teal:#25e0c0}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:linear-gradient(180deg,#1b1035,#2b1250);color:var(--text);min-height:100vh}
+main{max-width:640px;margin:0 auto;padding:16px 16px 150px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo svg{width:44px;height:44px}
+.logo h1{margin:0;font-size:1.6rem;background:linear-gradient(90deg,var(--pink),var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);margin:4px 0 14px}
+input[type=search],input[type=text],select{width:100%;padding:12px;border:1px solid #4a3a7a;border-radius:12px;background:#22143f;color:var(--text);font-size:1rem}
+.row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.chip{padding:7px 14px;border-radius:20px;border:1px solid #4a3a7a;background:transparent;color:var(--muted);cursor:pointer;font-size:.9rem}
+.chip.on{background:linear-gradient(90deg,var(--pink),var(--amber));color:#1b1035;border-color:transparent;font-weight:600}
+.track{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:10px;margin-top:10px;border-left:4px solid var(--teal)}
+.track.now{border-left-color:var(--pink);background:#3a2270}
+.play{width:42px;height:42px;border-radius:50%;border:0;background:linear-gradient(135deg,var(--pink),var(--amber));color:#1b1035;font-size:1.1rem;cursor:pointer;flex:none}
+.info{flex:1;min-width:0}
+.info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info small{color:var(--muted)}
+.ico{background:none;border:0;color:var(--muted);font-size:1.3rem;cursor:pointer;text-decoration:none;padding:4px}
+.ico.fav{color:var(--pink)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#120a26;border-top:2px solid var(--pink);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.bar .in{max-width:640px;margin:0 auto}
+.bar .t{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ctl button{background:none;border:0;color:var(--text);font-size:1.4rem;cursor:pointer;padding:4px 8px}
+.ctl .big{color:var(--amber)}
+input[type=range]{width:100%;accent-color:var(--pink)}
+.up{margin-top:22px;padding:14px;border:1px dashed var(--teal);border-radius:14px}
+.up input,.up select{margin:5px 0}
+.btn{display:inline-block;padding:10px 16px;border-radius:10px;background:var(--teal);color:#1b1035;font-weight:600;cursor:pointer;border:0}
+.note{font-size:.85rem;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+<div class="logo">
+<svg viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3d81"/><stop offset="1" stop-color="#ffb62e"/></linearGradient></defs><rect width="512" height="512" rx="110" fill="#120a26"/><circle cx="256" cy="256" r="170" fill="url(#g)"/><g fill="#1b1035"><rect x="150" y="226" width="26" height="60" rx="13"/><rect x="190" y="196" width="26" height="120" rx="13"/><rect x="230" y="166" width="26" height="180" rx="13"/><rect x="270" y="206" width="26" height="100" rx="13"/><rect x="310" y="186" width="26" height="140" rx="13"/><rect x="350" y="226" width="26" height="60" rx="13"/></g></svg>
+<h1>Brighton</h1>
+</div>
+<p class="sub">Free, legal music. Play, save favourites, download.</p>
+<input type="search" id="q" placeholder="Search songs or artists">
+<div class="row" id="tabs"></div>
+<div class="row" id="genres"></div>
+<div class="row"><button class="chip" id="shuf">Shuffle: off</button></div>
+<div id="list"></div>
+<div class="up">
+<b>Add a song</b>
+<input type="text" id="title" placeholder="Song title">
+<input type="text" id="artist" placeholder="Artist name">
+<select id="genre"><option>Gospel</option><option>Afrobeat</option><option>Hip-hop</option><option>Chill</option><option>Other</option></select>
+<label class="btn">Choose audio file<input type="file" id="file" accept="audio/*" hidden></label>
+<div class="note">Only add songs you made or have permission to share. Added songs stay until you close the app.</div>
+</div>
+</main>
+<div class="bar"><div class="in">
+<div class="t"><div class="info"><b id="np">Pick a song</b><small id="npa"></small></div>
+<div class="ctl"><button id="prev">⏮</button><button id="pp" class="big">▶</button><button id="next">⏭</button></div></div>
+<input type="range" id="seek" value="0" min="0" max="100">
+</div></div>
+<script>
+const tracks=[];
+function tone(notes){
+  const sr=22050,dur=0.4,d=[];
+  notes.forEach(f=>{for(let i=0;i<sr*dur;i++){const e=Math.min(1,i/400)*Math.max(0,1-i/(sr*dur));d.push(Math.sin(2*Math.PI*f*i/sr)*0.4*e)}});
+  const b=new ArrayBuffer(44+d.length*2),v=new DataView(b);
+  const w=(o,s)=>[...s].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
+  w(0,'RIFF');v.setUint32(4,36+d.length*2,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);
+  v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);
+  v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,d.length*2,true);
+  d.forEach((s,i)=>v.setInt16(44+i*2,s*32767,true));
+  return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
+}
+let id=0;
+const add=(t,a,g,u,x)=>tracks.unshift({id:++id,title:t,artist:a,genre:g,url:u,ext:x});
+add('Sunrise','Demo Artist','Chill',tone([330,392,494,659,494,392]),'wav');
+add('Evening Calm','Demo Artist','Chill',tone([220,262,330,262,220,196]),'wav');
+add('Morning Tune','Demo Artist','Gospel',tone([262,330,392,523,392,330]),'wav');
+let favs=[];try{favs=JSON.parse(localStorage.getItem('sn_favs')||'[]')}catch(e){}
+const saveFavs=()=>{try{localStorage.setItem('sn_favs',JSON.stringify(favs))}catch(e){}};
+let tab='All',genre='All',shuffle=false,cur=null,shown=[];
+const au=new Audio(),$=i=>document.getElementById(i);
+function chips(el,items,sel,fn){
+  el.innerHTML='';
+  items.forEach(x=>{const b=document.createElement('button');b.className='chip'+(x===sel?' on':'');b.textContent=x;b.onclick=()=>fn(x);el.appendChild(b)});
+}
+function render(){
+  chips($('tabs'),['All','Favourites'],tab,x=>{tab=x;render()});
+  chips($('genres'),['All',...new Set(tracks.map(t=>t.genre))],genre,x=>{genre=x;render()});
+  const s=$('q').value.toLowerCase();
+  shown=tracks.filter(t=>(tab==='All'||favs.includes(t.title+t.artist))&&(genre==='All'||t.genre===genre)&&(t.title+t.artist).toLowerCase().includes(s));
+  const L=$('list');L.innerHTML='';
+  shown.forEach(t=>{
+    const d=document.createElement('div');d.className='track'+(cur&&cur.id===t.id?' now':'');
+    const p=document.createElement('button');p.className='play';p.textContent=(cur&&cur.id===t.id&&!au.paused)?'⏸':'▶';p.onclick=()=>play(t);
+    const i=document.createElement('div');i.className='info';
+    const b=document.createElement('b');b.textContent=t.title;
+    const m=document.createElement('small');m.textContent=t.artist+' · '+t.genre;i.append(b,m);
+    const k=t.title+t.artist,f=document.createElement('button');
+    f.className='ico'+(favs.includes(k)?' fav':'');f.textContent=favs.includes(k)?'♥':'♡';
+    f.onclick=()=>{favs=favs.includes(k)?favs.filter(x=>x!==k):[...favs,k];saveFavs();render()};
+    const a=document.createElement('a');a.className='ico';a.textContent='⬇';a.href=t.url;
+    a.download=(t.title+' - '+t.artist+'.'+t.ext).replace(/[\\/:*?"<>|]/g,'');
+    d.append(p,i,f,a);L.appendChild(d);
+  });
+  if(!shown.length)L.textContent=tab==='Favourites'?'No favourites yet. Tap ♡ on a song.':'No songs found.';
+}
+function play(t){
+  if(cur&&cur.id===t.id){au.paused?au.play():au.pause();return}
+  cur=t;au.src=t.url;au.play();$('np').textContent=t.title;$('npa').textContent=t.artist;
+}
+function step(n){
+  if(!shown.length)return;
+  let i=cur?shown.findIndex(x=>x.id===cur.id):-1;
+  i=shuffle?Math.floor(Math.random()*shown.length):(i+n+shown.length)%shown.length;
+  play(shown[i]);
+}
+au.onplay=au.onpause=()=>{$('pp').textContent=au.paused?'▶':'⏸';render()};
+au.onended=()=>step(1);
+au.ontimeupdate=()=>{$('seek').value=au.duration?au.currentTime/au.duration*100:0};
+$('seek').oninput=e=>{if(au.duration)au.currentTime=e.target.value/100*au.duration};
+$('pp').onclick=()=>cur?(au.paused?au.play():au.pause()):step(0);
+$('next').onclick=()=>step(1);$('prev').onclick=()=>step(-1);
+$('shuf').onclick=e=>{shuffle=!shuffle;e.target.textContent='Shuffle: '+(shuffle?'on':'off');e.target.classList.toggle('on',shuffle)};
+$('q').oninput=render;
+$('file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  add($('title').value||f.name.replace(/\.[^.]+$/,''),$('artist').value||'Unknown artist',$('genre').value,URL.createObjectURL(f),f.name.split('.').pop());
+  e.target.value='';$('title').value='';$('artist').value='';render();
+};
+render();
+</script>
+</body>
+</html>
